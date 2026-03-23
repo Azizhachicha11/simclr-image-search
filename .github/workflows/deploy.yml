@@ -55,7 +55,7 @@ jobs:
           "
 
       - name: Run tests
-        run: python -m pytest tests/ -v --tb=short
+        run: PYTHONPATH=. python -m pytest tests/ -v --tb=short
 
   # ── Job 2 : Deploy Backend → Render ────────────────────────────────────────
   deploy-backend:

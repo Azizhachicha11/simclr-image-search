@@ -84,4 +84,4 @@ jobs:
       # ── 6. Lancement des tests ─────────────────────────────────────────────
       - name: Run tests
         run: |
-          python -m pytest tests/ -v --tb=short
+          PYTHONPATH=. python -m pytest tests/ -v --tb=short
