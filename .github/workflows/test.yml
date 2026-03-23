@@ -49,7 +49,7 @@ jobs:
           import os
           os.makedirs('checkpoints', exist_ok=True)
           hf_hub_download(
-              repo_id='${{ github.repository_owner }}/simclr-stl10',
+              repo_id='ElBOOH55/simclr-stl10',
               filename='simclr_best.pt',
               local_dir='checkpoints',
               token=os.environ.get('HF_TOKEN')
@@ -67,13 +67,13 @@ jobs:
           import os
           os.makedirs('index', exist_ok=True)
           hf_hub_download(
-              repo_id='${{ github.repository_owner }}/simclr-stl10',
+              repo_id='ElBOOH55/simclr-stl10',
               filename='faiss.index',
               local_dir='index',
               token=os.environ.get('HF_TOKEN')
           )
           hf_hub_download(
-              repo_id='${{ github.repository_owner }}/simclr-stl10',
+              repo_id='ElBOOH55/simclr-stl10',
               filename='labels.npy',
               local_dir='index',
               token=os.environ.get('HF_TOKEN')
@@ -84,4 +84,4 @@ jobs:
       # ── 6. Lancement des tests ─────────────────────────────────────────────
       - name: Run tests
         run: |
-          pytest tests/ -v --tb=short
+          python -m pytest tests/ -v --tb=short
