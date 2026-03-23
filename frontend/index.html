@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SimCLR-powered visual image search engine. Upload an image and find visually similar images using contrastive learning embeddings and FAISS.">
+    <title>SimCLR Image Search Engine</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header__badge">
+                <span class="dot"></span>
+                SimCLR · FAISS · STL-10
+            </div>
+            <h1 class="header__title">Image Search Engine</h1>
+            <p class="header__subtitle">
+                Upload any image to find visually similar matches using contrastive learning representations
+            </p>
+        </header>
+
+        <!-- Error Message -->
+        <div id="error-msg" class="error-msg"></div>
+
+        <!-- Upload + Settings -->
+        <section class="upload-section">
+            <!-- Dropzone -->
+            <div id="dropzone" class="dropzone">
+                <div class="dropzone__icon">📸</div>
+                <div class="dropzone__title">Drop your image here</div>
+                <div class="dropzone__text">or click anywhere to browse</div>
+                <button id="browse-btn" class="dropzone__btn">
+                    Choose File
+                </button>
+                <input type="file" id="file-input" accept="image/*">
+            </div>
+
+            <!-- Settings Panel -->
+            <aside class="settings-panel">
+                <div class="settings-panel__title">⚙️ Settings</div>
+                <div class="setting-group">
+                    <label>Number of results (Top-K)</label>
+                    <div class="slider-row">
+                        <input type="range" id="topk-slider" min="1" max="20" value="5">
+                        <span id="topk-value" class="slider-value">5</span>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <strong>How it works</strong><br>
+                    Your image is encoded into a 512-dim vector by the SimCLR encoder (ResNet-18),
+                    then matched against 5,000 indexed STL-10 images using FAISS cosine similarity.
+                </div>
+            </aside>
+        </section>
+
+        <!-- Query Preview -->
+        <div id="query-preview" class="query-preview">
+            <div class="query-card">
+                <img id="query-img" class="query-card__img" src="" alt="Query image">
+                <div class="query-card__info">
+                    <div class="query-card__label">Query Image</div>
+                    <div id="query-name" class="query-card__name"></div>
+                    <div id="query-meta" class="query-card__meta"></div>
+                </div>
+                <button id="search-btn" class="query-card__search-btn">
+                    🔍 Search Again
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <div class="loading-overlay__text">Encoding image &amp; searching FAISS index…</div>
+        </div>
+
+        <!-- Results -->
+        <section id="results-section" class="results-section">
+            <div class="results-header">
+                <h2 class="results-header__title">Similar Images</h2>
+                <span id="results-count" class="results-header__count"></span>
+            </div>
+            <div id="results-grid" class="results-grid"></div>
+        </section>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

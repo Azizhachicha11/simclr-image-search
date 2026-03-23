@@ -1,12 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # CD Pipeline — Déploiement automatique
 # ═══════════════════════════════════════════════════════════════════════════════
-# Déclenché uniquement sur push vers main.
-# 1. Attend que les tests CI passent (needs: test)
-# 2. Déploie l'API backend sur Render (via deploy hook)
-# 3. Remplace l'URL localhost dans app.js par l'URL Render
-# 4. Déploie le frontend sur GitHub Pages
-# ═══════════════════════════════════════════════════════════════════════════════
 
 name: "CD — Deploy"
 
@@ -14,25 +8,56 @@ on:
   push:
     branches: [main]
 
-# Permissions nécessaires pour GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Un seul déploiement à la fois
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  # ── Job 1 : Lancer les tests d'abord ───────────────────────────────────────
+  # ── Job 1 : Tests ──────────────────────────────────────────────────────────
   test:
     name: "🧪 Tests"
-    uses: ./.github/workflows/test.yml
-    secrets: inherit
+    runs-on: ubuntu-latest
 
-  # ── Job 2 : Déployer le backend sur Render ─────────────────────────────────
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Download model & index from Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -c "
+          from huggingface_hub import hf_hub_download
+          import os
+          os.makedirs('checkpoints', exist_ok=True)
+          os.makedirs('index', exist_ok=True)
+          hf_hub_download(repo_id='ElBOOH55/simclr-stl10', filename='simclr_best.pt', local_dir='checkpoints', token=os.environ.get('HF_TOKEN'))
+          hf_hub_download(repo_id='ElBOOH55/simclr-stl10', filename='faiss.index', local_dir='index', token=os.environ.get('HF_TOKEN'))
+          hf_hub_download(repo_id='ElBOOH55/simclr-stl10', filename='labels.npy', local_dir='index', token=os.environ.get('HF_TOKEN'))
+          print('All files downloaded')
+          "
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
+
+  # ── Job 2 : Deploy Backend → Render ────────────────────────────────────────
   deploy-backend:
     name: "🚀 Deploy Backend → Render"
     runs-on: ubuntu-latest
@@ -41,12 +66,10 @@ jobs:
     steps:
       - name: Trigger Render deploy hook
         run: |
-          echo "🔄 Déclenchement du déploiement Render..."
           curl -s "${{ secrets.RENDER_DEPLOY_HOOK }}"
-          echo ""
-          echo "✔ Deploy hook déclenché avec succès"
+          echo "Deploy triggered"
 
-  # ── Job 3 : Déployer le frontend sur GitHub Pages ──────────────────────────
+  # ── Job 3 : Deploy Frontend → GitHub Pages ─────────────────────────────────
   deploy-frontend:
     name: "🌐 Deploy Frontend → GitHub Pages"
     runs-on: ubuntu-latest
@@ -60,25 +83,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Remplacer l'URL localhost par l'URL Render dans app.js
       - name: Replace API URL for production
         run: |
-          echo "🔄 Remplacement de l'URL API dans app.js..."
           sed -i 's|http://localhost:8000|${{ secrets.API_URL }}|g' frontend/app.js
-          echo "✔ URL remplacée par : ${{ secrets.API_URL }}"
-          grep "API_URL" frontend/app.js
+          echo "API URL replaced"
 
-      # Configurer GitHub Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      # Uploader uniquement le dossier frontend/
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: "frontend/"
 
-      # Déployer
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
