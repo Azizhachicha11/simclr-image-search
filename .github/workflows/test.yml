@@ -1,0 +1,87 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# CI Pipeline — Tests automatiques
+# ═══════════════════════════════════════════════════════════════════════════════
+# Déclenché sur chaque push et pull request vers main.
+# 1. Installe Python 3.12 + dépendances
+# 2. Télécharge le checkpoint depuis Hugging Face Hub
+# 3. Lance pytest
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "CI — Tests"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: "🧪 Tests unitaires & intégration"
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout du code ────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python 3.12 ────────────────────────────────────────────────────
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      # ── 3. Installation des dépendances ────────────────────────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      # ── 4. Téléchargement du modèle depuis Hugging Face ────────────────────
+      - name: Download model from Hugging Face Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -c "
+          from huggingface_hub import hf_hub_download
+          import os
+          os.makedirs('checkpoints', exist_ok=True)
+          hf_hub_download(
+              repo_id='${{ github.repository_owner }}/simclr-stl10',
+              filename='simclr_best.pt',
+              local_dir='checkpoints',
+              token=os.environ.get('HF_TOKEN')
+          )
+          print('✔ Model downloaded successfully')
+          "
+
+      # ── 5. Téléchargement de l'index FAISS ─────────────────────────────────
+      - name: Download FAISS index from Hugging Face Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -c "
+          from huggingface_hub import hf_hub_download
+          import os
+          os.makedirs('index', exist_ok=True)
+          hf_hub_download(
+              repo_id='${{ github.repository_owner }}/simclr-stl10',
+              filename='faiss.index',
+              local_dir='index',
+              token=os.environ.get('HF_TOKEN')
+          )
+          hf_hub_download(
+              repo_id='${{ github.repository_owner }}/simclr-stl10',
+              filename='labels.npy',
+              local_dir='index',
+              token=os.environ.get('HF_TOKEN')
+          )
+          print('✔ FAISS index & labels downloaded')
+          "
+
+      # ── 6. Lancement des tests ─────────────────────────────────────────────
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short

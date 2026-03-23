@@ -1,0 +1,84 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# CD Pipeline — Déploiement automatique
+# ═══════════════════════════════════════════════════════════════════════════════
+# Déclenché uniquement sur push vers main.
+# 1. Attend que les tests CI passent (needs: test)
+# 2. Déploie l'API backend sur Render (via deploy hook)
+# 3. Remplace l'URL localhost dans app.js par l'URL Render
+# 4. Déploie le frontend sur GitHub Pages
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "CD — Deploy"
+
+on:
+  push:
+    branches: [main]
+
+# Permissions nécessaires pour GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul déploiement à la fois
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # ── Job 1 : Lancer les tests d'abord ───────────────────────────────────────
+  test:
+    name: "🧪 Tests"
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  # ── Job 2 : Déployer le backend sur Render ─────────────────────────────────
+  deploy-backend:
+    name: "🚀 Deploy Backend → Render"
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Trigger Render deploy hook
+        run: |
+          echo "🔄 Déclenchement du déploiement Render..."
+          curl -s "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo ""
+          echo "✔ Deploy hook déclenché avec succès"
+
+  # ── Job 3 : Déployer le frontend sur GitHub Pages ──────────────────────────
+  deploy-frontend:
+    name: "🌐 Deploy Frontend → GitHub Pages"
+    runs-on: ubuntu-latest
+    needs: test
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Remplacer l'URL localhost par l'URL Render dans app.js
+      - name: Replace API URL for production
+        run: |
+          echo "🔄 Remplacement de l'URL API dans app.js..."
+          sed -i 's|http://localhost:8000|${{ secrets.API_URL }}|g' frontend/app.js
+          echo "✔ URL remplacée par : ${{ secrets.API_URL }}"
+          grep "API_URL" frontend/app.js
+
+      # Configurer GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      # Uploader uniquement le dossier frontend/
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "frontend/"
+
+      # Déployer
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

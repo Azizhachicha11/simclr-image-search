@@ -1,0 +1,38 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Docker Compose — Frontend (nginx) + Backend (FastAPI)
+# ══════════════════════════════════════════════════════════════════════════════
+# Lancement : docker compose up --build
+# Frontend  : http://localhost:80
+# Backend   : http://localhost:8000
+# ══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ── Backend : API FastAPI ──────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simclr-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Frontend : Nginx servant les fichiers statiques ────────────────────────
+  frontend:
+    image: nginx:alpine
+    container_name: simclr-frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
