@@ -1,0 +1,760 @@
+═══════════════════════════════════════════════════════════════════════════════
+                 JOURNAL COMPLET — CI/CD SIMCLR IMAGE SEARCH
+        Toutes les étapes, commandes et modifications effectuées
+                          23-25 Mars 2026
+═══════════════════════════════════════════════════════════════════════════════
+
+REPO GITHUB    : https://github.com/Azizhachicha11/simclr-image-search
+FRONTEND       : https://azizhachicha11.github.io/simclr-image-search/
+BACKEND API    : https://simclr-api.onrender.com
+MODÈLE HF      : https://huggingface.co/ElBOOH55/simclr-stl10
+CI/CD STATUS   : https://github.com/Azizhachicha11/simclr-image-search/actions
+
+───────────────────────────────────────────────────────────────────────────────
+STRUCTURE FINALE DU REPO GIT
+───────────────────────────────────────────────────────────────────────────────
+
+.github/workflows/deploy.yml    ← Pipeline CD (déploiement automatique)
+.github/workflows/test.yml      ← Pipeline CI (tests automatiques)
+.gitignore                      ← Exclusion fichiers lourds
+CICD_DOCUMENTATION.md           ← Documentation CI/CD (résumé)
+CICD_COMPLET.txt                ← CE FICHIER
+Dockerfile                      ← Build image Docker pour Render
+README.md                       ← Documentation projet
+app.py                          ← App Flask locale (interface web)
+backend/api.py                  ← API FastAPI production (Render)
+backend/requirements.txt        ← Dépendances Python
+dataset.py                      ← Chargement dataset STL-10
+docker-compose.yml              ← Lancement local (backend + frontend)
+entrypoint.sh                   ← Script démarrage Docker (télécharge modèle)
+frontend/app.js                 ← JavaScript frontend GitHub Pages
+frontend/index.html             ← HTML frontend GitHub Pages
+frontend/style.css              ← CSS frontend GitHub Pages
+horse.jpg                       ← Image de test
+index.py                        ← Construction index FAISS
+model.py                        ← Architecture SimCLR (ResNet-18)
+resultats.png                   ← Screenshot résultats
+search.py                       ← Moteur de recherche FAISS
+static/app.js                   ← JavaScript Flask (local)
+static/style.css                ← CSS Flask (local)
+templates/index.html            ← Template HTML Flask (local)
+tests/test_api.py               ← 4 tests d'intégration API
+tests/test_model.py             ← 3 tests unitaires modèle
+train.py                        ← Entraînement SimCLR
+visualize.py                    ← Visualisation embeddings
+
+───────────────────────────────────────────────────────────────────────────────
+COMMITS GIT (du plus ancien au plus récent)
+───────────────────────────────────────────────────────────────────────────────
+
+1fd817c  2026-03-23  feat: SimCLR image search engine with CI/CD pipeline
+79d70d4  2026-03-23  fix: use correct HF repo id (ElBOOH55/simclr-stl10) in test workflow
+0d93c81  2026-03-23  fix: add frontend/ dir, fix faiss-cpu version (1.8.0), fix deploy workflow
+67fac91  2026-03-23  docs: add complete CI/CD documentation
+73f74cc  2026-03-23  fix: dockerfile copies root py files, entrypoint downloads model from HF, PYTHONPATH for tests
+11cdb65  2026-03-25  fix: use backend/api.py (FastAPI), fix all imports, fix Dockerfile COPY  ← ACTUEL ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 1 — CRÉATION DES FICHIERS CI/CD (23 Mars 2026)
+═══════════════════════════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 1 : backend/requirements.txt
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\backend\requirements.txt
+
+CONTENU FINAL :
+  # ML & Vision
+  torch==2.2.2
+  torchvision==0.17.2
+  faiss-cpu==1.8.0
+  numpy==1.26.4
+  Pillow==10.3.0
+
+  # API
+  fastapi==0.110.0
+  uvicorn[standard]==0.27.1
+  python-multipart==0.0.9
+
+  # HuggingFace
+  huggingface-hub==0.21.0
+
+  # Tests
+  pytest==8.0.0
+  httpx==0.27.0
+
+MODIFICATIONS APPLIQUÉES :
+  - torch==2.2.0  → torch==2.2.2       (compatibilité Python 3.12)
+  - torchvision==0.17.0 → torchvision==0.17.2
+  - faiss-cpu==1.7.4 → faiss-cpu==1.8.0  (CRITIQUE: 1.7.4 inexistant pour py3.12)
+  - Pillow==10.2.0 → Pillow==10.3.0
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 2 : tests/test_model.py
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\tests\test_model.py
+
+CONTENU (version finale) :
+  import torch, pytest, sys, os
+  # model.py est à la racine du projet (pas dans backend/)
+  sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+  from model import SimCLR
+
+  CHECKPOINT_PATH = "../checkpoints/simclr_best.pt"
+
+  @pytest.fixture(scope="module")
+  def model():
+      m = SimCLR(projection_dim=128)
+      m.load_state_dict(torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=True))
+      m.eval()
+      return m
+
+  def test_model_loads(model): assert model is not None
+  def test_encode_shape(model, dummy_image): assert embedding.shape == (1, 512)
+  def test_encode_normalized(model, dummy_image): assert abs(norm - 1.0) < 1e-4
+
+MODIFICATION :
+  - sys.path.insert(0, "../backend") → sys.path.insert(0, "..")
+    RAISON : model.py est à la RACINE, pas dans backend/
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 3 : tests/test_api.py
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\tests\test_api.py
+
+CONTENU (version finale) :
+  import io, pytest
+  from PIL import Image
+  from fastapi.testclient import TestClient
+  import sys, os
+  # Racine pour model.py + backend/ pour api.py
+  sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+  sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
+  from api import app
+
+  client = TestClient(app)
+
+  def test_health()              → GET /health → status 200
+  def test_search_valid_image()  → POST /search image valide → 5 résultats
+  def test_search_invalid_file() → POST /search texte → erreur 400
+  def test_search_top_k()        → POST /search top_k=3 → 3 résultats
+
+MODIFICATIONS :
+  - sys.path.insert(0, "../backend") → ajout de "../" en plus pour model.py
+  - Import depuis api (backend/api.py FastAPI) au lieu de app (Flask)
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 4 : .github/workflows/test.yml  (CI Pipeline)
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\.github\workflows\test.yml
+
+DÉCLENCHEUR : push et pull_request vers main
+JOBS :
+  1. Install Python 3.12
+  2. pip install -r backend/requirements.txt
+  3. Télécharger modèle depuis HuggingFace (HF_TOKEN secret)
+     python -c "from huggingface_hub import hf_hub_download; ..."
+     → checkpoints/simclr_best.pt
+     → index/faiss.index
+     → index/labels.npy
+  4. PYTHONPATH=. python -m pytest tests/ -v --tb=short
+
+MODIFICATION CLÉS :
+  - Ajout PYTHONPATH=. pour que pytest trouve api.py à la racine
+  - Repo HF corrigé : "${{ github.repository_owner }}/simclr-stl10"
+    → 'ElBOOH55/simclr-stl10' (valeur en dur, la variable n'est pas interpolée en Python)
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 5 : .github/workflows/deploy.yml  (CD Pipeline)
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\.github\workflows\deploy.yml
+
+DÉCLENCHEUR : push vers main uniquement
+PERMISSIONS : contents: read, pages: write, id-token: write
+CONCURRENCY : group "pages", cancel-in-progress: false
+
+JOBS :
+
+  job "test" :
+    - Checkout
+    - Setup Python 3.12
+    - pip install -r backend/requirements.txt
+    - Télécharger modèle HF (HF_TOKEN)
+    - PYTHONPATH=. python -m pytest tests/ -v --tb=short
+
+  job "deploy-backend" (needs: test) :
+    - curl -s "${{ secrets.RENDER_DEPLOY_HOOK }}"
+      → Déclenche redéploiement Render
+
+  job "deploy-frontend" (needs: test) :
+    - sed -i 's|http://localhost:8000|${{ secrets.API_URL }}|g' frontend/app.js
+      → Remplace l'URL localhost par l'URL Render de production
+    - actions/configure-pages@v4
+    - actions/upload-pages-artifact@v3 (path: "frontend/")
+    - actions/deploy-pages@v4
+
+MODIFICATIONS MAJEURES :
+  v1 : utilisait "uses: ./.github/workflows/test.yml" comme workflow réutilisable
+       → ERREUR : nécessite trigger "workflow_call" non configuré
+  v2 : steps de test inlinés directement dans deploy.yml  ← VERSION FINALE ✓
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 6 : Dockerfile
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\Dockerfile
+
+VERSION FINALE :
+  FROM python:3.12-slim
+
+  ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+  WORKDIR /app
+
+  RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+  COPY backend/requirements.txt .
+  RUN pip install --no-cache-dir -r requirements.txt
+
+  COPY model.py .          ← model.py est à la racine
+  COPY backend/api.py .    ← api.py est dans backend/
+
+  COPY entrypoint.sh .
+  RUN chmod +x entrypoint.sh
+
+  EXPOSE 8000
+  HEALTHCHECK --interval=30s --timeout=15s --retries=5 \
+      CMD curl -f http://localhost:8000/health || exit 1
+  CMD ["./entrypoint.sh"]
+
+HISTORIQUE DES ERREURS ET CORRECTIONS :
+
+  Erreur v1 : COPY checkpoints/ ./checkpoints/ → /checkpoints: not found
+  RAISON    : checkpoints/ est dans .gitignore, absent du repo Git
+  FIX       : Supprimé ces COPY, téléchargement au runtime via entrypoint.sh
+
+  Erreur v2 : COPY api.py ... → /api.py: not found
+  RAISON    : Le fichier principal s'appelle app.py (Flask), pas api.py
+  FIX v2    : COPY app.py → mais app.py charge STL-10 dataset (impossible sur Render)
+
+  Solution finale :
+  - Créé backend/api.py : FastAPI léger SANS dataset STL-10
+  - COPY model.py + backend/api.py seulement ← CORRECT ✓
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 7 : entrypoint.sh
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\entrypoint.sh
+
+CONTENU FINAL :
+  #!/bin/bash
+  set -e
+  echo "=== SimCLR Image Search API ==="
+  mkdir -p checkpoints index
+
+  python -c "
+  from huggingface_hub import hf_hub_download
+  import os
+  token = os.environ.get('HF_TOKEN')
+  repo  = 'ElBOOH55/simclr-stl10'
+  hf_hub_download(repo_id=repo, filename='simclr_best.pt', local_dir='checkpoints', token=token)
+  hf_hub_download(repo_id=repo, filename='faiss.index',    local_dir='index',        token=token)
+  hf_hub_download(repo_id=repo, filename='labels.npy',     local_dir='index',        token=token)
+  "
+
+  exec uvicorn api:app --host 0.0.0.0 --port 8000
+
+MODIFICATIONS :
+  v1 : exec uvicorn api:app → problème car api.py n'existait pas encore
+  v2 : utilise backend/api.py maintenant disponible ← CORRECT ✓
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 8 : docker-compose.yml
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\docker-compose.yml
+
+CONTENU :
+  services:
+    backend:
+      build: .
+      ports: ["8000:8000"]
+      environment:
+        - HF_TOKEN=${HF_TOKEN}
+      volumes:
+        - ./checkpoints:/app/checkpoints
+        - ./index:/app/index
+    frontend:
+      image: nginx:alpine
+      ports: ["80:80"]
+      volumes:
+        - ./frontend:/usr/share/nginx/html:ro
+
+USAGE LOCAL :
+  docker compose up --build
+  → Frontend : http://localhost:80
+  → Backend  : http://localhost:8000
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 9 : .gitignore
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\.gitignore
+
+CONTENU IMPORTANT :
+  checkpoints/          ← simclr_best.pt (42 MB) → sur HuggingFace
+  index/                ← faiss.index (10 MB) + labels.npy → sur HuggingFace
+  data/                 ← Dataset STL-10 (2.5 GB)
+  __pycache__/
+  *.pyc
+  .env
+  .venv/
+  venv/
+  .pytest_cache/
+  *.egg-info/
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 10 : backend/api.py  (NOUVEAU — FastAPI production)
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\backend\api.py
+
+POURQUOI : app.py (Flask) charge le dataset STL-10 complet au démarrage
+           → Impossible sur Render (dataset = 2.5 GB, non disponible)
+           → Solution : API FastAPI légère sans dataset, retourne classe + score
+
+ENDPOINTS :
+  GET  /health  → {"status": "ok", "indexed": 5000, "device": "cpu"}
+  POST /search  → multipart/form-data: image + top_k
+                  → {"results": [{"rank", "class", "similarity"}], "total_indexed"}
+
+DIFFÉRENCES vs app.py :
+  - Framework  : FastAPI (pas Flask)
+  - Port       : 8000 (pas 5000)
+  - STL-10     : NON chargé (pas de thumbnails dans les résultats)
+  - CORS       : Activé (allow_origins=["*"])
+  - CPU only   : torch.device("cpu") forcé (Render Free = pas de GPU)
+  - Imports    : sys.path.insert(0, ...) pour trouver model.py à la racine
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIERS 11-13 : frontend/ (GitHub Pages)
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉS :
+  c:\Users\azizh\constractive learning\frontend\index.html
+  c:\Users\azizh\constractive learning\frontend\style.css
+  c:\Users\azizh\constractive learning\frontend\app.js
+
+POURQUOI UN DOSSIER SÉPARÉ :
+  - templates/index.html utilise /static/style.css → chemins Flask absolus
+  - GitHub Pages = hosting statique, ne supporte pas les chemins Flask
+  - frontend/ utilise des chemins RELATIFS (style.css, app.js)
+
+CONTENU frontend/app.js (CRITIQUE) :
+  // Ligne remplacée par sed dans le CI/CD :
+  const API_URL = "http://localhost:8000";  // ← remplacé par secrets.API_URL
+
+  async function performSearch() {
+      const response = await fetch(`${API_URL}/search`, { method: "POST", ... });
+  }
+
+DIFFÉRENCE vs static/app.js :
+  - static/app.js : fetch("/search", ...) → chemin relatif Flask
+  - frontend/app.js : fetch(`${API_URL}/search`, ...) → URL absolue Render
+
+───────────────────────────────────────────────────────────────────────────────
+FICHIER 14 : README.md
+───────────────────────────────────────────────────────────────────────────────
+CRÉÉ : c:\Users\azizh\constractive learning\README.md
+
+CONTENU :
+  - Description projet SimCLR
+  - Architecture (diagramme texte)
+  - Prérequis
+  - Installation locale
+  - Lancement avec Docker
+  - Guide configuration CI/CD + secrets GitHub
+  - Structure du projet
+  - Documentation API
+
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 2 — CONFIGURATION GIT ET GITHUB (23 Mars 2026)
+═══════════════════════════════════════════════════════════════════════════════
+
+COMMANDES EXÉCUTÉES :
+
+  # Initialisation du dépôt Git
+  git init
+
+  # Ajout de tous les fichiers (sauf .gitignore)
+  git add .
+
+  # Vérification du staging
+  git status --short
+  git diff --cached --name-only
+
+  # Configuration identité Git
+  git config --global user.name "Azizhachicha11"
+  git config --global user.email "azizh@users.noreply.github.com"
+
+  # Vérification config
+  git config --global user.name    → Azizhachicha11
+  git config --global user.email   → azizh@users.noreply.github.com
+
+  # Premier commit
+  git commit -m "feat: SimCLR image search engine with CI/CD pipeline"
+
+  # Connexion au repo GitHub (créé via l'interface web)
+  git remote add origin https://github.com/Azizhachicha11/simclr-image-search.git
+  git branch -M main
+  git push -u origin main
+  → 19 fichiers envoyés
+
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 3 — HUGGING FACE HUB (23 Mars 2026)
+═══════════════════════════════════════════════════════════════════════════════
+
+ÉTAPES NAVIGATEUR :
+  1. Connexion sur huggingface.co
+  2. Création repo : New Model → "simclr-stl10" → Public
+     URL : https://huggingface.co/ElBOOH55/simclr-stl10
+
+TOKENS CRÉÉS :
+  - Token READ  : hf_**** (nom: github-actions, type: Read)
+    → Utilisé comme secret GitHub HF_TOKEN
+  - Token WRITE : hf_**** (nom: upload-token, type: Write)
+    → Utilisé localement pour l'upload initial uniquement
+
+INSTALLATION LIBRAIRIE :
+  pip install huggingface-hub --quiet
+
+UPLOAD DES FICHIERS MODÈLE :
+  python -c "
+  from huggingface_hub import HfApi
+  api = HfApi(token='hf_****')  # token WRITE (local uniquement)
+
+  # Upload 1 : Poids du modèle (42 MB)
+  api.upload_file(
+      path_or_fileobj='checkpoints/simclr_best.pt',
+      path_in_repo='simclr_best.pt',
+      repo_id='ElBOOH55/simclr-stl10',
+      repo_type='model'
+  )
+
+  # Upload 2 : Index FAISS (10 MB)
+  api.upload_file(
+      path_or_fileobj='index/faiss.index',
+      path_in_repo='faiss.index',
+      repo_id='ElBOOH55/simclr-stl10',
+      repo_type='model'
+  )
+
+  # Upload 3 : Labels numpy
+  api.upload_file(
+      path_or_fileobj='index/labels.npy',
+      path_in_repo='labels.npy',
+      repo_id='ElBOOH55/simclr-stl10',
+      repo_type='model'
+  )
+  "
+
+  ✔ RÉSULTAT : 3 fichiers uploadés avec succès
+
+ERREUR RENCONTRÉE :
+  Première tentative avec token READ → erreur "correct permissions"
+  FIX : Créer un token WRITE séparé pour l'upload
+
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 4 — RENDER (BACKEND DOCKER) (23 Mars 2026)
+═══════════════════════════════════════════════════════════════════════════════
+
+ÉTAPES NAVIGATEUR (render.com) :
+  1. Connexion via Google OAuth (azizhach98@gmail.com)
+  2. New → Web Service
+  3. Connexion GitHub → repo "simclr-image-search"
+  4. Configuration service :
+     - Name    : simclr-api
+     - Runtime : Docker (auto-détecté via Dockerfile)
+     - Branch  : main
+     - Plan    : Free
+  5. Click "Deploy Web Service"
+
+INFORMATIONS RÉCUPÉRÉES :
+  Service URL   : https://simclr-api.onrender.com
+  Deploy Hook   : https://api.render.com/deploy/srv-d70ocu49c44c73b50j30?key=X1sOVKfokIc
+  Service ID    : srv-d70ocu49c44c73b50j30
+
+VARIABLE D'ENVIRONNEMENT AJOUTÉE (Render Dashboard) :
+  Environment → Add :
+    Key   : HF_TOKEN
+    Value : hf_**** (token READ)
+  → Save, rebuild and deploy
+
+ERREURS DOCKER ET CORRECTIONS :
+
+  Erreur 1 (Build v1) :
+    [7/8] COPY checkpoints/ ./checkpoints/ → "/checkpoints": not found
+    CAUSE  : checkpoints/ absent du repo Git (dans .gitignore)
+    FIX    : Suppression du COPY, téléchargement via entrypoint.sh
+
+  Erreur 2 (Build v2) :
+    [6/8] COPY api.py ... → "/api.py": not found
+    CAUSE  : Le fichier s'appelle app.py (Flask), pas api.py
+    FIX    : Créé backend/api.py (FastAPI) + COPY model.py + COPY backend/api.py
+
+  ✔ Build v3 : SUCCESS (commit 11cdb65)
+
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 5 — SECRETS GITHUB (23 Mars 2026)
+═══════════════════════════════════════════════════════════════════════════════
+
+CHEMIN : GitHub → Settings → Secrets and variables → Actions
+
+3 SECRETS AJOUTÉS :
+
+  Secret 1 :
+    Nom   : HF_TOKEN
+    URL   : https://github.com/Azizhachicha11/simclr-image-search/settings/secrets/actions
+    Usage : Téléchargement du modèle depuis HuggingFace dans CI + Render
+
+  Secret 2 :
+    Nom   : API_URL
+    Valeur: https://simclr-api.onrender.com
+    Usage : Remplace "http://localhost:8000" dans frontend/app.js via sed
+
+  Secret 3 :
+    Nom   : RENDER_DEPLOY_HOOK
+    Valeur: https://api.render.com/deploy/srv-***?key=***
+    Usage : Déclenche redéploiement Render depuis GitHub Actions
+
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 6 — GITHUB PAGES (23 Mars 2026)
+═══════════════════════════════════════════════════════════════════════════════
+
+CHEMIN : GitHub → Settings → Pages
+
+CONFIGURATION :
+  Source : GitHub Actions (pas "Deploy from a branch")
+  → Message confirmé : "GitHub Pages source saved."
+
+URL RÉSULTANTE : https://azizhachicha11.github.io/simclr-image-search/
+
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 7 — CORRECTIONS ET DEBUG (23-25 Mars 2026)
+═══════════════════════════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────────────────────────
+CORRECTION 1 : Repo HuggingFace dans workflow
+───────────────────────────────────────────────────────────────────────────────
+COMMIT   : 79d70d4
+PROBLÈME : repo_id='${{ github.repository_owner }}/simclr-stl10'
+           La variable GitHub Actions n'est pas interpolée dans les strings Python
+AVANT    : hf_hub_download(repo_id='${{ github.repository_owner }}/simclr-stl10', ...)
+APRÈS    : hf_hub_download(repo_id='ElBOOH55/simclr-stl10', ...)
+
+COMMANDE DE PUSH :
+  git add .github/workflows/test.yml
+  git commit -m "fix: use correct HF repo id (ElBOOH55/simclr-stl10) in test workflow"
+  git push origin main
+
+───────────────────────────────────────────────────────────────────────────────
+CORRECTION 2 : faiss-cpu version incompatible
+───────────────────────────────────────────────────────────────────────────────
+COMMIT   : 0d93c81
+PROBLÈME : faiss-cpu==1.7.4 n'existe pas pour Python 3.12 sur Ubuntu runner
+ERREUR CI : pip install failed - No matching distribution found for faiss-cpu==1.7.4
+AVANT    : faiss-cpu==1.7.4
+APRÈS    : faiss-cpu==1.8.0
+
+COMMANDE DE PUSH :
+  git add backend/requirements.txt
+  git commit -m "fix: add frontend/ dir, fix faiss-cpu version (1.8.0), fix deploy workflow"
+  git push origin main
+
+───────────────────────────────────────────────────────────────────────────────
+CORRECTION 3 : deploy.yml appelait test.yml comme workflow réutilisable
+───────────────────────────────────────────────────────────────────────────────
+COMMIT   : 0d93c81 (même commit)
+PROBLÈME :
+  deploy.yml contenait :
+    jobs:
+      test:
+        uses: ./.github/workflows/test.yml   ← ERREUR
+        secrets: inherit
+  
+  Pour utiliser "uses:" avec un fichier local, il faut que test.yml ait :
+    on:
+      workflow_call:     ← manquant !
+  
+FIX : Les steps de tests ont été copiés/inlinés directement dans deploy.yml
+
+───────────────────────────────────────────────────────────────────────────────
+CORRECTION 4 : Dossier frontend/ inexistant
+───────────────────────────────────────────────────────────────────────────────
+COMMIT   : 0d93c81 (même commit)
+PROBLÈME : deploy.yml uploadait "frontend/" mais ce dossier n'existait pas
+           Le projet utilisait templates/ (Flask) et static/ pour le CSS/JS
+SOLUTION : Créé frontend/ avec :
+  - frontend/index.html (chemins relatifs, pas /static/)
+  - frontend/style.css  (copie de static/style.css)
+  - frontend/app.js     (avec const API_URL = "http://localhost:8000")
+
+COMMANDES :
+  Copy-Item "static\style.css" "frontend\style.css"
+  (+ création manuelle de frontend/index.html et frontend/app.js)
+
+───────────────────────────────────────────────────────────────────────────────
+CORRECTION 5 : Secrets dans CICD_DOCUMENTATION.md bloquent le push (GH013)
+───────────────────────────────────────────────────────────────────────────────
+PROBLÈME : GitHub Secret Scanning a détecté les tokens HF dans le fichier MD
+ERREUR   : remote: error: GH013: Repository rule violations found for refs/heads/main
+FIX      : Remplacement de tous les tokens réels par "hf_****"
+           Les Deploy Hook URLs ont aussi été masquées
+
+COMMANDES :
+  git add CICD_DOCUMENTATION.md
+  git commit --amend --no-edit  ← amende le commit précédent
+  git push origin main
+
+───────────────────────────────────────────────────────────────────────────────
+CORRECTION 6 : sys.path incorrect dans les tests
+───────────────────────────────────────────────────────────────────────────────
+COMMIT   : 11cdb65
+PROBLÈME : test_model.py et test_api.py ajoutaient "..\backend" au sys.path
+           mais model.py est à la RACINE (pas dans backend/)
+           → ModuleNotFoundError: No module named 'model'
+
+AVANT (test_model.py) :
+  sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
+  from model import SimCLR   ← ERREUR : model.py n'est pas dans backend/
+
+APRÈS (test_model.py) :
+  sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+  from model import SimCLR   ← OK : model.py est à la racine
+
+AVANT (test_api.py) :
+  sys.path.insert(0, "../backend")
+  from api import app   ← ERREUR : api.py n'existait pas encore
+
+APRÈS (test_api.py) :
+  sys.path.insert(0, "..")           # pour model.py (racine)
+  sys.path.insert(0, "../backend")   # pour api.py (backend/)
+  from api import app   ← OK : importe backend/api.py
+
+───────────────────────────────────────────────────────────────────────────────
+CORRECTION 7 : app.py (Flask) incompatible avec Render
+───────────────────────────────────────────────────────────────────────────────
+COMMIT   : 11cdb65
+PROBLÈME : app.py charge le dataset STL-10 au démarrage :
+             stl10_dataset = torchvision.datasets.STL10(root="./data", download=False)
+           Or le dossier data/ n'existe pas sur Render (2.5 GB non hébergé)
+           → FileNotFoundError au démarrage du conteneur
+
+SOLUTION : Créé backend/api.py (FastAPI) qui :
+  - NE charge PAS STL-10
+  - Retourne seulement classe + score de similarité (sans thumbnails)
+  - Tourne sur le port 8000 (pas 5000)
+  - Active CORS (frontend GitHub Pages sur domaine différent)
+  - Force CPU (Render Free = pas de GPU)
+
+COMMANDES DE PUSH :
+  git add Dockerfile entrypoint.sh backend/api.py tests/test_api.py tests/test_model.py
+  git commit -m "fix: use backend/api.py (FastAPI), fix all imports, fix Dockerfile COPY"
+  git push origin main
+
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 8 — INSTALLATION DES DÉPENDANCES (local)
+═══════════════════════════════════════════════════════════════════════════════
+
+COMMANDES EXÉCUTÉES LOCALEMENT :
+
+  # Installation pytest et httpx pour les tests
+  pip install pytest httpx --quiet
+
+  # Installation huggingface-hub pour l'upload
+  pip install huggingface-hub --quiet
+
+  # Test local du modèle (passé ✅)
+  python -m pytest tests/test_model.py -v --tb=short
+  → 3/3 tests PASSED
+
+═══════════════════════════════════════════════════════════════════════════════
+RÉSUMÉ TOUS LES COMMITS ET LEURS EFFETS
+═══════════════════════════════════════════════════════════════════════════════
+
+COMMIT 1 : 1fd817c — feat: SimCLR image search engine with CI/CD pipeline
+  Fichiers ajoutés :
+    - backend/requirements.txt (premiers, avec faiss==1.7.4 incorrect)
+    - tests/test_api.py
+    - tests/test_model.py
+    - .github/workflows/test.yml (avec repo HF incorrect)
+    - .github/workflows/deploy.yml (avec "uses:" incorrect)
+    - Dockerfile (avec COPY checkpoints/ incorrect)
+    - docker-compose.yml
+    - .gitignore
+    - README.md
+    - + tous les fichiers existants (app.py, model.py, search.py, etc.)
+  Résultat CI : ❌ FAIL (repo HF + faiss version)
+
+COMMIT 2 : 79d70d4 — fix: use correct HF repo id
+  Fichiers modifiés :
+    - .github/workflows/test.yml → repo_id en dur 'ElBOOH55/simclr-stl10'
+  Résultat CI : ❌ FAIL (faiss-cpu==1.7.4 toujours)
+
+COMMIT 3 : 0d93c81 — fix: add frontend/ dir, fix faiss-cpu, fix deploy workflow
+  Fichiers modifiés/ajoutés :
+    - backend/requirements.txt → faiss-cpu==1.8.0, torch==2.2.2, etc.
+    - .github/workflows/deploy.yml → steps inlinés (pas "uses:")
+    - frontend/index.html (CRÉÉ)
+    - frontend/style.css (CRÉÉ, copie de static/)
+    - frontend/app.js (CRÉÉ, avec API_URL)
+  Résultat CI : ❌ FAIL (ModuleNotFoundError: api)
+
+COMMIT 4 : 67fac91 — docs: add complete CI/CD documentation
+  Fichiers modifiés/ajoutés :
+    - CICD_DOCUMENTATION.md (CRÉÉ)
+  Résultat CI : ❌ FAIL (même erreur)
+
+COMMIT 5 : 73f74cc — fix: dockerfile copies root py files, entrypoint, PYTHONPATH
+  Fichiers modifiés/ajoutés :
+    - Dockerfile → COPY app.py (mais app.py = Flask avec STL-10, mauvais)
+    - entrypoint.sh (CRÉÉ) → télécharge modèle puis uvicorn
+    - .github/workflows/test.yml → PYTHONPATH=. python -m pytest
+    - .github/workflows/deploy.yml → PYTHONPATH=. python -m pytest
+  Résultat CI : ❌ FAIL (app.py charge STL-10, ModuleNotFoundError pour api)
+  Résultat RENDER : ❌ FAIL (COPY api.py → not found)
+
+COMMIT 6 : 11cdb65 — fix: use backend/api.py (FastAPI), fix all imports ✅ ACTUEL
+  Fichiers modifiés/ajoutés :
+    - backend/api.py (CRÉÉ) → FastAPI léger sans dataset
+    - Dockerfile → COPY model.py + COPY backend/api.py (correct!)
+    - tests/test_model.py → sys.path corrigé (racine, pas backend/)
+    - tests/test_api.py → double sys.path (racine + backend/)
+    - entrypoint.sh → uvicorn api:app (correct, api.py existe maintenant)
+  Résultat CI  : ✅ SUCCESS (tests passent!)
+  Résultat CD  : ✅ SUCCESS (deploy frontend + trigger Render)
+  Résultat Render : 🔄 Building (télécharge modèle HF puis démarre)
+  Résultat Pages  : ✅ LIVE
+
+═══════════════════════════════════════════════════════════════════════════════
+ÉTAT FINAL (25 Mars 2026 à 18:35)
+═══════════════════════════════════════════════════════════════════════════════
+
+  GitHub Actions CI  : ✅ PASS (6 runs, dernier: success en ~2 min)
+  GitHub Actions CD  : ✅ PASS (tests + deploy-backend + deploy-frontend)
+  GitHub Pages       : ✅ LIVE → https://azizhachicha11.github.io/simclr-image-search/
+  HuggingFace Hub    : ✅ DONE → 3 fichiers hébergés (42 MB + 10 MB + labels)
+  Render Docker      : 🔄 BUILDING → https://simclr-api.onrender.com
+  GitHub Secrets     : ✅ 3 secrets configurés (HF_TOKEN, API_URL, RENDER_DEPLOY_HOOK)
+  Render Env Vars    : ✅ HF_TOKEN configuré
+
+───────────────────────────────────────────────────────────────────────────────
+NOTE SUR LE COLD START RENDER (Plan Gratuit)
+───────────────────────────────────────────────────────────────────────────────
+
+  Le plan Render Free éteint le service après 15 min d'inactivité.
+  Au redémarrage :
+    1. Téléchargement modèle HF (42 MB) ≈ 30-60 secondes
+    2. Chargement FAISS index (10 MB) ≈ 5 secondes
+    3. Démarrage uvicorn ≈ 5 secondes
+  TOTAL première requête : ~60-90 secondes (normal sur plan gratuit)
+
+  Après le premier démarrage : temps de réponse < 1 seconde
+
+═══════════════════════════════════════════════════════════════════════════════
+FIN DU JOURNAL
+═══════════════════════════════════════════════════════════════════════════════
