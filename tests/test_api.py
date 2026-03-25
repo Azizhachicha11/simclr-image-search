@@ -15,6 +15,8 @@ from fastapi.testclient import TestClient
 
 # ── Import de l'app FastAPI ───────────────────────────────────────────────────
 import sys, os
+# Add root (for model.py) and backend/ (for api.py) to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 from api import app  # noqa: E402
 

@@ -11,7 +11,8 @@ import torch
 import pytest
 
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
+# model.py is at the project root
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from model import SimCLR  # noqa: E402
 
 CHECKPOINT_PATH = os.path.join(

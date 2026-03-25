@@ -1,8 +1,11 @@
 # ══════════════════════════════════════════════════════════════════════════════
-# Dockerfile — API SimCLR Image Search
+# Dockerfile — API SimCLR Image Search (Production — Render)
 # ══════════════════════════════════════════════════════════════════════════════
-# Structure du projet : les fichiers Python sont à la RACINE (api.py, model.py...)
-# Le modèle et l'index FAISS sont téléchargés depuis HuggingFace au démarrage.
+# Structure :
+#   backend/api.py       → FastAPI app (production, pas le Flask local)
+#   model.py             → SimCLR model (racine du projet)
+#   backend/requirements.txt → dépendances
+#   entrypoint.sh        → télécharge modèle depuis HF Hub puis lance uvicorn
 # ══════════════════════════════════════════════════════════════════════════════
 
 FROM python:3.12-slim
@@ -21,8 +24,10 @@ RUN apt-get update && \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ── Code source (racine du projet = api.py, model.py, search.py...) ──────────
-COPY api.py model.py search.py dataset.py train.py index.py ./
+# ── Code source ───────────────────────────────────────────────────────────────
+# model.py est à la racine, api.py est dans backend/
+COPY model.py .
+COPY backend/api.py .
 
 # ── Script de démarrage ───────────────────────────────────────────────────────
 COPY entrypoint.sh .
@@ -30,7 +35,7 @@ RUN chmod +x entrypoint.sh
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+HEALTHCHECK --interval=30s --timeout=15s --retries=5 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["./entrypoint.sh"]
