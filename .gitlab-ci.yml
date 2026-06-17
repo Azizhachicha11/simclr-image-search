@@ -1,0 +1,9 @@
+stages:
+  - test
+
+verify-python:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - python --version
+    - echo "Pipeline is working!"
