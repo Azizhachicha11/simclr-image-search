@@ -4,6 +4,14 @@ stages:
 verify-python:
   stage: test
   image: python:3.12-slim
+  cache:
+    key: pip-cache
+    paths:
+      - .pip/
+  before_script:
+    - pip install --cache-dir .pip -r requirements.txt
   script:
     - python --version
-    - echo "Pipeline is working!"
+    - python -c "import torch; print('torch:', torch.__version__)"
+    - python -c "import faiss; print('faiss: ok')"
+    - echo "All dependencies installed successfully!"
