@@ -94,6 +94,7 @@ def train(args):
             optimizer.step()
 
             total_loss += loss.item()
+            
             loop.set_postfix(loss=f"{loss.item():.4f}")
 
         scheduler.step()
