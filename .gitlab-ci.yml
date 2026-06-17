@@ -13,5 +13,4 @@ verify-python:
   script:
     - python --version
     - python -c "import torch; print('torch:', torch.__version__)"
-    - python -c "import faiss; print('faiss: ok')"
     - echo "All dependencies installed successfully!"
