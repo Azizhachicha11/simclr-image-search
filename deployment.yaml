@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simclr-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simclr-api
+  template:
+    metadata:
+      labels:
+        app: simclr-api
+    spec:
+      containers:
+        - name: simclr-api
+          image: azizhachicha/simclr-api:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token-secret   # nom du Secret créé
+                  key: HF_TOKEN            # la clé à l'intérieur
