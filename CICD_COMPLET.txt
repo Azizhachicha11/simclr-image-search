@@ -154,7 +154,7 @@ JOBS :
   2. pip install -r backend/requirements.txt
   3. Télécharger modèle depuis HuggingFace (HF_TOKEN secret)
      python -c "from huggingface_hub import hf_hub_download; ..."
-     → checkpoints/simclr_best.pt
+     → checkpoints/simclr_best.fpt
      → index/faiss.index
      → index/labels.npy
   4. PYTHONPATH=. python -m pytest tests/ -v --tb=short
