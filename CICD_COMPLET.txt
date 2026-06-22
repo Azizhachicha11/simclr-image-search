@@ -84,7 +84,7 @@ CONTENU FINAL :
   httpx==0.27.0
 
 MODIFICATIONS APPLIQUÉES :
-  - torch==2.2.0  → torch==2.2.2       (compatibilité Python 3.12)
+  - torch==2.2.0  → torch==2.2.2       (compatibilité Python 3.1200)
   - torchvision==0.17.0 → torchvision==0.17.2
   - faiss-cpu==1.7.4 → faiss-cpu==1.8.0  (CRITIQUE: 1.7.4 inexistant pour py3.12)
   - Pillow==10.2.0 → Pillow==10.3.0
