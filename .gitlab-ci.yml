@@ -1,7 +1,6 @@
 stages:
   - test
 
-<<<<<<< HEAD
 verify-deps:
   stage: test
   image: python:3.12-slim
@@ -23,11 +22,3 @@ run-tests:
     - python download_model.py
   script:
     - pytest tests/ -v --tb=short --ignore=tests/test_model.py
-=======
-verify-python:
-  stage: test
-  image: python:3.12-slim
-  script:
-    - python --version
-    - echo "Pipeline is working!"
->>>>>>> 23cf944 (add simple ci)
